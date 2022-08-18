@@ -183,19 +183,31 @@ ___SANDBOXED_JS_FOR_WEB_TEMPLATE___
 const log = require('logToConsole');
 const callInWindow = require('callInWindow');
 const injectScript = require('injectScript');
+const setInWindow = require('setInWindow');
 const copyFromWindow = require('copyFromWindow');
 const encodeUriComponent = require('encodeUriComponent');
 const isConsentGranted = require('isConsentGranted');
 const addConsentListener = require('addConsentListener');
 
-log('data =', data);
+log('TikTok| data =', data);
+
+// if there is no pixel, end with failure
+if (!data.pixelId){
+  log('ERROR: no pixel id found.');
+  data.gtmOnFailure();
+}
 
 // Getting the init pixels, if any
-var pixels = copyFromWindow('ttq._i');
+let pixels = copyFromWindow('ttq._i');
+log('TikTok| pixels:',pixels);
+
+// Getting the pixels added as input
+let tag_pixels = data.pixelId.split(',');
+log('TikTok| tag_pixels:',tag_pixels);
 
 // Declaring event name and parameters
-var eventName = (data.eventName=='manual' ? data.eventNameVar : data.eventName);
-var eventParams = data.eventParameters;
+let eventName = (data.eventName=='manual' ? data.eventNameVar : data.eventName);
+let eventParams = data.eventParameters;
 if (eventParams=='manual'){
   eventParams = {};
   data.parametersTable.forEach(function(pair){
@@ -204,51 +216,52 @@ if (eventParams=='manual'){
 } else if(eventParams=='none'){
   eventParams = null;
 }
-
-// to_call is a global variable to store the object that calls the tracking functions
-var to_call = copyFromWindow('TiktokAnalyticsObject');
-
-// if there are multiple pixels, calls the tiktok pixel instance
-var tag_pixels = data.pixelId.split(',');
-if (tag_pixels.length<1){
-  log('TikTok ERROR: no pixel id found.');
-  data.gtmOnFailure();
-}
+log('TikTok| eventName:',eventName);
+log('TikTok| eventParams:',eventParams);
 
 // function to actually track de event for a pixel
-const trackEvent = (thisPixelId) => {
+const trackEvent = function(thisPixelId,init){
   if (tag_pixels.length == 1){
     if (eventName=='PageView'){
-      callInWindow(to_call+'.page');
-      log('tracking '+eventName+' for '+thisPixelId);
+      if (init){ // library load includes pageview so send pageview manually only if pixel is already loaded
+        callInWindow('ttq.page');
+        log('TikTok| tracking '+eventName+' for '+thisPixelId);
+      }
     } else {
       if (eventParams){
-        callInWindow(to_call+'.track', eventName, eventParams);
-        log('tracking '+eventName+' for '+thisPixelId+' with params:', eventParams);
+        callInWindow('ttq.track', eventName, eventParams);
+        log('TikTok| tracking '+eventName+' for '+thisPixelId+' with params:', eventParams);
       } else {
-        callInWindow(to_call+'.track', eventName);
-        log('tracking '+eventName+' for '+thisPixelId);
+        callInWindow('ttq.track', eventName);
+        log('TikTok| tracking '+eventName+' for '+thisPixelId);
       }
     }
   } else {
-    let result = callInWindow(to_call+'Instance',{'eventName':eventName,'eventParams':eventParams,'pixelId':thisPixelId});
-    log((result ? eventName+' tracked successfully for '+thisPixelId : 'Could not track '+eventName+' for '+thisPixelId));
+    if (init || (!init && eventName != 'PageView')){
+      let thisPixelId_index = tag_pixels.indexOf(thisPixelId);
+      let result = callInWindow('ttqInstance',{'eventName':eventName,'eventParams':eventParams,'pixelId':thisPixelId});
+      log('TikTok| '+(result ? eventName+' tracked successfully for '+thisPixelId : 'Could not track '+eventName+' for '+thisPixelId));
+    }
   }
 };
 
 // iterates through each pixel Id, checks if already loaded and trackEvent
 const sendEvent = () => {
-  tag_pixels.forEach((thisPixelId) => {
-    if (!pixels || pixels.indexOf(thisPixelId)==-1 || !pixels[thisPixelId]._init){
-      var url="https://analytics.tiktok.com/i18n/pixel/sdk.js?sdkid="+encodeUriComponent(thisPixelId);
-      injectScript(url,trackEvent,data.gtmOnFailure);
+  tag_pixels.forEach(function(thisPixelId) {
+    if (!pixels || !pixels[thisPixelId] || !pixels[thisPixelId]._init){
+      log('TikTok| '+thisPixelId+' not loaded yet.');
+      let url="https://analytics.tiktok.com/i18n/pixel/sdk.js"; // base library
+      url += "?sdkid="+encodeUriComponent(thisPixelId); // adding pixel ID
+      // trackEvent has to be wrapped as injectScript is not compatible with function arguments
+      injectScript(url,function(){trackEvent(thisPixelId,false);},data.gtmOnFailure);
     } else {
-      trackEvent();
+      log('TikTok| '+thisPixelId+' is already loaded.');
+      trackEvent(thisPixelId,true);
     }
   });
 };
 
-var sent = false;
+let sent = false;
 if (isConsentGranted('ad_storage')){
   sendEvent();
   sent = true;
@@ -331,128 +344,11 @@ ___WEB_PERMISSIONS___
                   },
                   {
                     "type": 8,
-                    "boolean": true
-                  },
-                  {
-                    "type": 8,
-                    "boolean": true
-                  }
-                ]
-              },
-              {
-                "type": 3,
-                "mapKey": [
-                  {
-                    "type": 1,
-                    "string": "key"
-                  },
-                  {
-                    "type": 1,
-                    "string": "read"
-                  },
-                  {
-                    "type": 1,
-                    "string": "write"
-                  },
-                  {
-                    "type": 1,
-                    "string": "execute"
-                  }
-                ],
-                "mapValue": [
-                  {
-                    "type": 1,
-                    "string": "ttq.instance"
-                  },
-                  {
-                    "type": 8,
-                    "boolean": true
-                  },
-                  {
-                    "type": 8,
-                    "boolean": true
-                  },
-                  {
-                    "type": 8,
-                    "boolean": true
-                  }
-                ]
-              },
-              {
-                "type": 3,
-                "mapKey": [
-                  {
-                    "type": 1,
-                    "string": "key"
-                  },
-                  {
-                    "type": 1,
-                    "string": "read"
-                  },
-                  {
-                    "type": 1,
-                    "string": "write"
-                  },
-                  {
-                    "type": 1,
-                    "string": "execute"
-                  }
-                ],
-                "mapValue": [
-                  {
-                    "type": 1,
-                    "string": "ttqInstance.track"
-                  },
-                  {
-                    "type": 8,
                     "boolean": false
                   },
                   {
                     "type": 8,
                     "boolean": false
-                  },
-                  {
-                    "type": 8,
-                    "boolean": true
-                  }
-                ]
-              },
-              {
-                "type": 3,
-                "mapKey": [
-                  {
-                    "type": 1,
-                    "string": "key"
-                  },
-                  {
-                    "type": 1,
-                    "string": "read"
-                  },
-                  {
-                    "type": 1,
-                    "string": "write"
-                  },
-                  {
-                    "type": 1,
-                    "string": "execute"
-                  }
-                ],
-                "mapValue": [
-                  {
-                    "type": 1,
-                    "string": "ttqInstance.page"
-                  },
-                  {
-                    "type": 8,
-                    "boolean": false
-                  },
-                  {
-                    "type": 8,
-                    "boolean": false
-                  },
-                  {
-                    "type": 8,
-                    "boolean": true
                   }
                 ]
               },
@@ -483,11 +379,89 @@ ___WEB_PERMISSIONS___
                   },
                   {
                     "type": 8,
-                    "boolean": true
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
                   },
                   {
                     "type": 8,
                     "boolean": true
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "ttq.track"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "ttq.page"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
                   },
                   {
                     "type": 8,
@@ -520,6 +494,10 @@ ___WEB_PERMISSIONS___
               {
                 "type": 1,
                 "string": "https://analytics.tiktok.com/i18n/pixel/sdk.js?sdkid\u003d*"
+              },
+              {
+                "type": 1,
+                "string": "https://analytics.tiktok.com/i18n/pixel/events.js?sdkid\u003d*"
               }
             ]
           }
@@ -589,11 +567,14 @@ ___WEB_PERMISSIONS___
 
 ___TESTS___
 
-scenarios: []
+scenarios:
+- name: Quick Test
+  code: runCode();
+setup: ''
 
 
 ___NOTES___
 
-Created on 16/8/2022, 14:24:43
+Created on 18/8/2022, 10:43:17
 
 
