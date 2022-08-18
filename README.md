@@ -1,4 +1,4 @@
-# Tiktok gtm template
+# TikTok gtm template
  GTM template for the TikTok pixel
 
 
