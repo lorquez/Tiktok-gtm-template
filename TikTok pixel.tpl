@@ -26,7 +26,7 @@ ___TEMPLATE_PARAMETERS___
     "name": "pixelId",
     "displayName": "TikTok pixel ID (or multiple IDs separated by a comma)",
     "simpleValueType": true,
-    "help": "If using multiple IDs, please take a look at the instruction here https://github.com/lorquez/Tiktok-gtm-template",
+    "help": "If using multiple IDs, please take a look at \u003ca href\u003d\"https://github.com/lorquez/Tiktok-gtm-template\"\u003ethis github repo\u003c/a\u003e for more information",
     "alwaysInSummary": true,
     "valueValidators": [
       {
@@ -575,6 +575,6 @@ setup: ''
 
 ___NOTES___
 
-Created on 18/8/2022, 12:59:41
+Created on 18/8/2022, 13:04:04
 
 
